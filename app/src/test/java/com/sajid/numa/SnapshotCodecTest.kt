@@ -1,4 +1,4 @@
-package com.cloneapp.numa
+package com.sajid.numa
 
 import org.json.JSONObject
 import org.junit.Assert.*

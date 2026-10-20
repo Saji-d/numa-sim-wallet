@@ -1,4 +1,4 @@
-package com.cloneapp.numa
+package com.sajid.numa
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity

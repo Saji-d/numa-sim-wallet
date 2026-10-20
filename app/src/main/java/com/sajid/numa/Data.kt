@@ -1,4 +1,4 @@
-package com.cloneapp.numa
+package com.sajid.numa
 
 // ---- Domain models ----
 data class Country(val code: String, val name: String, val dial: String, val pricePerMonth: Int, val flag: String)

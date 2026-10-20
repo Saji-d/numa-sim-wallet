@@ -1,4 +1,4 @@
-package com.cloneapp.numa
+package com.sajid.numa
 
 import android.app.Application
 import java.io.File

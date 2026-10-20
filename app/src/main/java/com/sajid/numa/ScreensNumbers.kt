@@ -1,4 +1,4 @@
-package com.cloneapp.numa
+package com.sajid.numa
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -212,7 +212,7 @@ fun GetNumberScreen(nav: Nav) {
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            Text("${c.pricePerMonth} credits / 30 days", style = MaterialTheme.typography.labelMedium)
+                            Text("${creditsText(c.pricePerMonth)} / 30 days", style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
@@ -234,7 +234,7 @@ fun PickNumberScreen(nav: Nav, country: Country) {
 
     ScreenFrame("${country.flag} ${country.name}", onBack = { nav.back() }) {
         Text(
-            "Pick a number · $price credits for 30 days",
+            "Pick a number · ${creditsText(price)} for 30 days",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -260,7 +260,7 @@ fun PickNumberScreen(nav: Nav, country: Country) {
         }
         Spacer(Modifier.height(Dim.gap))
         Text(
-            "Balance: ${store.credits} credits",
+            "Balance: ${creditsText(store.credits)}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -271,7 +271,7 @@ fun PickNumberScreen(nav: Nav, country: Country) {
         error?.let { ErrorText(it) }
         Spacer(Modifier.height(8.dp))
         PrimaryButton(
-            text = if (selected == null) "Select a number" else "Get $selected · $price credits",
+            text = if (selected == null) "Select a number" else "Get $selected · ${creditsText(price)}",
             enabled = selected != null && affordable,
         ) {
             val num = selected ?: return@PrimaryButton
@@ -336,10 +336,10 @@ fun NumberDetailScreen(nav: Nav, id: Int) {
                 DetailRow("Status", numberStatus(n), error = expired)
                 DetailRow("Added", formatDate(n.purchasedAt))
                 DetailRow("${if (expired) "Expired" else "Expires"}", formatDate(n.expiresAt), error = expired)
-                DetailRow("Renewal", "${n.country.pricePerMonth} credits / $NUMBER_TERM_DAYS days")
+                DetailRow("Renewal", "${creditsText(n.country.pricePerMonth)} / $NUMBER_TERM_DAYS days")
             }
             Spacer(Modifier.height(Dim.gap))
-            PrimaryButton("Renew $NUMBER_TERM_DAYS days · ${n.country.pricePerMonth} credits") {
+            PrimaryButton("Renew $NUMBER_TERM_DAYS days · ${creditsText(n.country.pricePerMonth)}") {
                 renewError = store.renewNumber(n.id)
             }
             renewError?.let {

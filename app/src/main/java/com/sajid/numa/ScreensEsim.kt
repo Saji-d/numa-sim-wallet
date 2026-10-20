@@ -1,4 +1,4 @@
-package com.cloneapp.numa
+package com.sajid.numa
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -113,7 +113,7 @@ fun EsimCountryScreen(nav: Nav, country: Country) {
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(formatUsd(p.priceUsd), fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
                                 Text(
-                                    "${p.credits} credits",
+                                    "${creditsText(p.credits)}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -153,11 +153,11 @@ fun EsimPlanDetailScreen(nav: Nav, planId: String) {
                 Spacer(Modifier.height(Dim.gap))
                 InfoRow("Destination", plan.country.name)
                 InfoRow("Validity", "${plan.days} days")
-                InfoRow("Price", "${formatUsd(plan.priceUsd)} / ${plan.credits} credits")
-                InfoRow("Your balance", "${store.credits} credits")
+                InfoRow("Price", "${formatUsd(plan.priceUsd)} / ${creditsText(plan.credits)}")
+                InfoRow("Your balance", "${creditsText(store.credits)}")
                 if (!purchased) {
                     val after = store.credits - plan.credits
-                    InfoRow("Balance after purchase", if (affordable) "$after credits" else "Not enough credits")
+                    InfoRow("Balance after purchase", if (affordable) "${creditsText(after)}" else "Not enough credits")
                 }
             }
 
@@ -172,7 +172,7 @@ fun EsimPlanDetailScreen(nav: Nav, planId: String) {
                         shape = RoundedCornerShape(14.dp),
                     ) { Text("Add credits") }
                 }
-                PrimaryButton("Buy for ${plan.credits} credits", enabled = affordable) {
+                PrimaryButton("Buy for ${creditsText(plan.credits)}", enabled = affordable) {
                     val err = store.buyEsim(plan)
                     error = err
                     if (err == null) purchased = true
@@ -278,7 +278,7 @@ fun WalletScreen(nav: Nav) {
     fun add(amount: Int) {
         val err = store.addCredits(amount)
         error = err
-        confirmation = if (err == null) "Added $amount credits." else null
+        confirmation = if (err == null) "Added ${creditsText(amount)}." else null
         if (err == null) amountText = ""
     }
 
@@ -288,7 +288,7 @@ fun WalletScreen(nav: Nav) {
                 Spacer(Modifier.height(4.dp))
                 AppCard {
                     Text("Balance", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("${store.credits} credits", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text("${creditsText(store.credits)}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                 }
             }
             item {
@@ -306,7 +306,7 @@ fun WalletScreen(nav: Nav) {
                         onValueChange = { amountText = it.filter(Char::isDigit).take(4); error = null; confirmation = null },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Custom amount") },
-                        supportingText = { Text("1 to $MAX_TOP_UP credits") },
+                        supportingText = { Text("1 to ${creditsText(MAX_TOP_UP)}") },
                         isError = error != null,
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),

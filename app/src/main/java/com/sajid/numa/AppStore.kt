@@ -1,4 +1,4 @@
-package com.cloneapp.numa
+package com.sajid.numa
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf

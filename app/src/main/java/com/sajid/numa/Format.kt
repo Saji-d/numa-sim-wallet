@@ -1,4 +1,4 @@
-package com.cloneapp.numa
+package com.sajid.numa
 
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -20,6 +20,9 @@ fun formatDate(at: Long): String = SimpleDateFormat("d MMM yyyy", Locale.getDefa
 
 /** 75 -> "1:15". */
 fun formatDuration(seconds: Int): String = "%d:%02d".format(seconds / 60, seconds % 60)
+
+/** "1 credit" / "5 credits". */
+fun creditsText(n: Int): String = if (n == 1) "1 credit" else "$n credits"
 
 fun formatUsd(v: Double): String = "$" + "%.2f".format(Locale.US, v)
 

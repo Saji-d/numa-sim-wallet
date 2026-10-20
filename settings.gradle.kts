@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "NumeroClone"
+rootProject.name = "Numa"
 include(":app")

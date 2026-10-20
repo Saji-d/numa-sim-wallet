@@ -1,4 +1,4 @@
-package com.cloneapp.numa
+package com.sajid.numa
 
 import org.junit.Assert.*
 import org.junit.Test
@@ -109,4 +109,10 @@ class FormatTest {
         assertFalse(isValidDialString("1234567890123456"))  // 16 chars
         assertFalse(isValidDialString("   "))
     }
+}
+
+class CreditsTextTest {
+    @org.junit.Test fun singular() = org.junit.Assert.assertEquals("1 credit", creditsText(1))
+    @org.junit.Test fun plural() = org.junit.Assert.assertEquals("5 credits", creditsText(5))
+    @org.junit.Test fun zero() = org.junit.Assert.assertEquals("0 credits", creditsText(0))
 }

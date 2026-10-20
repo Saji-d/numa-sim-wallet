@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.cloneapp.numa"
+    namespace = "com.sajid.numa"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.cloneapp.numa"
+        applicationId = "com.sajid.numa"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

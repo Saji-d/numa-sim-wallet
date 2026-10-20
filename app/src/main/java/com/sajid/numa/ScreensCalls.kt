@@ -1,4 +1,4 @@
-package com.cloneapp.numa
+package com.sajid.numa
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -268,7 +268,7 @@ fun InCallScreen(nav: Nav, peer: String) {
             contentAlignment = Alignment.Center,
         ) { Icon(Icons.Default.Call, "End call", Modifier.rotate(135f), tint = Color.White) }
         Spacer(Modifier.height(8.dp))
-        Text("End", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("End", Modifier.clickable { nav.back() }.padding(8.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(32.dp))
     }
 }

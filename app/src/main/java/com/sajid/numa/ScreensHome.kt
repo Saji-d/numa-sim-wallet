@@ -1,4 +1,4 @@
-package com.cloneapp.numa
+package com.sajid.numa
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -154,7 +154,7 @@ fun HomeScreen(nav: Nav) {
             Column(Modifier.padding(20.dp)) {
                 Text("Wallet balance", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimary)
                 Text(
-                    "${store.credits} credits", style = MaterialTheme.typography.headlineMedium,
+                    "${creditsText(store.credits)}", style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary,
                 )
                 Text("Add credits or view history", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimary)
@@ -181,7 +181,7 @@ fun HomeScreen(nav: Nav) {
                         fontWeight = FontWeight.SemiBold,
                         color = if (expired) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                     )
-                    Text("Open to renew for ${n.country.pricePerMonth} credits", style = MaterialTheme.typography.bodySmall,
+                    Text("Open to renew for ${creditsText(n.country.pricePerMonth)}", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
