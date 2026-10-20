@@ -3,3 +3,4 @@ build/
 *.apk
 local.properties
 .idea/
+*.pdf
