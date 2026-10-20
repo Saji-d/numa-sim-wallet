@@ -45,7 +45,7 @@ class Nav(val stack: SnapshotStateList<Screen>) {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { NumaTheme { App() } }
+        setContent { NumaTheme(store.themeMode) { App() } }
     }
 }
 
@@ -60,8 +60,8 @@ private val TABS = listOf(
 @Composable
 fun App() {
     val nav = remember { Nav(mutableStateListOf<Screen>(Screen.Welcome)) }
-    LaunchedEffect(Store.signedIn) {
-        if (!Store.signedIn) nav.tab(Screen.Welcome)
+    LaunchedEffect(store.signedIn) {
+        if (!store.signedIn) nav.tab(Screen.Welcome)
         else if (nav.current == Screen.Welcome || nav.current == Screen.SignIn) nav.tab(Screen.Home)
     }
     BackHandler(enabled = nav.stack.size > 1) { nav.back() }

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -20,8 +21,9 @@ private val Light = lightColorScheme(primary = Brand, secondary = Color(0xFF00B8
 private val Dark = darkColorScheme(primary = Color(0xFFB4A6FF), secondary = Color(0xFF4ADBB4))
 
 @Composable
-fun NumaTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = if (isSystemInDarkTheme()) Dark else Light, content = content)
+fun NumaTheme(mode: ThemeMode = ThemeMode.SYSTEM, content: @Composable () -> Unit) {
+    val dark = when (mode) { ThemeMode.SYSTEM -> isSystemInDarkTheme(); ThemeMode.LIGHT -> false; ThemeMode.DARK -> true }
+    MaterialTheme(colorScheme = if (dark) Dark else Light, content = content)
 }
 
 // ---- Shared components (use these in every screen) ----
@@ -63,11 +65,18 @@ fun EmptyState(title: String, body: String, actionLabel: String? = null, onActio
     }
 }
 
-/** Small "Demo" chip: put it on every screen whose result is simulated. */
+/**
+ * Quiet one-line note for a real integration boundary (for example "SMS delivery needs a messaging
+ * provider"). Use it only where an action's effect stays on this device.
+ */
 @Composable
-fun DemoBadge() {
-    Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.tertiaryContainer) {
-        Text("DEMO", Modifier.padding(horizontal = 8.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall)
+fun ServiceNotice(text: String, modifier: Modifier = Modifier) {
+    Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Info, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.width(8.dp))
+            Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 

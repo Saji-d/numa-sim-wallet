@@ -1,8 +1,10 @@
 package com.cloneapp.numa
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,40 +15,50 @@ import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 
 private val MissedRed = Color(0xFFD32F2F)
-private val HangUpRed = Color(0xFFE53935)
-
-private fun fmtDuration(s: Int): String = "%d:%02d".format(s / 60, s % 60)
+private val EndCallRed = Color(0xFFE53935)
+private const val MAX_DIGITS = 20
 
 // ---------------------------------------------------------------- Call history (tab root)
 
 @Composable
 fun CallsScreen(nav: Nav) {
+    var confirmClear by remember { mutableStateOf(false) }
+
     Box(Modifier.fillMaxSize()) {
-        ScreenFrame("Calls", actions = { DemoBadge(); Spacer(Modifier.width(Dim.screen)) }) {
-            if (Store.calls.isEmpty()) {
+        ScreenFrame(
+            "Calls",
+            actions = {
+                if (store.calls.isNotEmpty()) {
+                    IconButton(onClick = { confirmClear = true }) { Icon(Icons.Default.Delete, "Clear call history") }
+                }
+            },
+        ) {
+            if (store.calls.isEmpty()) {
                 EmptyState(
                     "No calls yet",
-                    "Your demo call history will show up here.",
+                    "Calls you place from the dialer are listed here.",
                     "Open dialer",
                 ) { nav.push(Screen.Dialer) }
             } else {
                 LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 88.dp)) {
-                    items(Store.calls) { c -> CallRow(c) { nav.push(Screen.InCall(c.peer)) } }
+                    items(store.calls) { c -> CallRow(c) { nav.push(Screen.InCall(c.peer)) } }
                 }
             }
         }
@@ -55,6 +67,16 @@ fun CallsScreen(nav: Nav) {
             modifier = Modifier.align(Alignment.BottomEnd).padding(Dim.screen),
             icon = { Icon(Icons.Default.Call, null) },
             text = { Text("Dial") },
+        )
+    }
+
+    if (confirmClear) {
+        AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            title = { Text("Clear call history?") },
+            text = { Text("All entries will be removed from this device.") },
+            confirmButton = { TextButton(onClick = { store.clearCalls(); confirmClear = false }) { Text("Clear") } },
+            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } },
         )
     }
 }
@@ -66,8 +88,13 @@ private fun CallRow(c: CallEntry, onClick: () -> Unit) {
         CallDir.OUT -> Triple(Icons.Default.ArrowForward, MaterialTheme.colorScheme.primary, "Outgoing")
         CallDir.MISSED -> Triple(Icons.Default.Close, MissedRed, "Missed")
     }
+    val detail = when {
+        c.seconds > 0 -> formatDuration(c.seconds)
+        c.dir == CallDir.OUT -> "Not connected"
+        else -> null
+    }
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = Dim.gap),
+        Modifier.fillMaxWidth().clickable(onClickLabel = "Call ${c.peer}", onClick = onClick).padding(vertical = Dim.gap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -83,9 +110,9 @@ private fun CallRow(c: CallEntry, onClick: () -> Unit) {
             Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text(c.time, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (c.dir != CallDir.MISSED) {
-                Text(fmtDuration(c.seconds), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(formatRelative(c.at), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (detail != null) {
+                Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -102,11 +129,13 @@ private val KEYS = listOf(
 fun DialerScreen(nav: Nav) {
     var number by remember { mutableStateOf("") }
     var callerIdx by remember { mutableIntStateOf(0) }
-    val callerId = Store.numbers.getOrNull(callerIdx) ?: Store.numbers.firstOrNull()
+    val numbers = store.numbers
+    val callerId = numbers.getOrNull(callerIdx) ?: numbers.firstOrNull()
+    val valid = isValidDialString(number)
 
-    ScreenFrame("Dialer", onBack = { nav.back() }, actions = { DemoBadge(); Spacer(Modifier.width(Dim.screen)) }) {
+    ScreenFrame("Dialer", onBack = { nav.back() }) {
         // Caller ID
-        if (Store.numbers.isEmpty()) {
+        if (numbers.isEmpty()) {
             AppCard {
                 Text("No number to call from", fontWeight = FontWeight.SemiBold)
                 Text(
@@ -120,7 +149,7 @@ fun DialerScreen(nav: Nav) {
         } else {
             Text("Caller ID", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Store.numbers.forEachIndexed { i, n ->
+                numbers.forEachIndexed { i, n ->
                     FilterChip(
                         selected = callerId?.id == n.id,
                         onClick = { callerIdx = i },
@@ -131,7 +160,7 @@ fun DialerScreen(nav: Nav) {
         }
 
         // Number display + backspace
-        Row(Modifier.fillMaxWidth().padding(vertical = Dim.gap), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(top = Dim.gap), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 number.ifEmpty { "Enter number" },
                 Modifier.weight(1f),
@@ -140,64 +169,81 @@ fun DialerScreen(nav: Nav) {
                 maxLines = 1,
                 color = if (number.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
             )
-            IconButton(onClick = { number = number.dropLast(1) }, enabled = number.isNotEmpty()) {
-                Icon(Icons.Default.Clear, "Delete digit")
+            if (number.isNotEmpty()) {
+                BackspaceButton(onTap = { number = number.dropLast(1) }, onHold = { number = "" })
+            } else {
+                Spacer(Modifier.size(48.dp))
             }
         }
+        Text(
+            if (number.isNotEmpty() && !valid) "Enter 3 to 15 digits, with an optional leading +." else " ",
+            Modifier.fillMaxWidth().padding(bottom = Dim.gap),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
 
         // Keypad
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.SpaceEvenly) {
             KEYS.forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    row.forEach { k -> KeyButton(k) { if (number.length < 20) number += k } }
+                    row.forEach { k ->
+                        KeyButton(
+                            k,
+                            onLongClick = if (k == "0") ({ if (number.length < MAX_DIGITS) number += "+" }) else null,
+                        ) { if (number.length < MAX_DIGITS) number += k }
+                    }
                 }
             }
         }
 
-        PrimaryButton("Call", enabled = number.isNotEmpty()) { nav.push(Screen.InCall(number)) }
-        Spacer(Modifier.height(4.dp))
-        Text(
-            "Demo only: no real call is placed.",
-            Modifier.fillMaxWidth().padding(bottom = Dim.gap),
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Spacer(Modifier.height(Dim.gap))
+        PrimaryButton("Call", enabled = valid, modifier = Modifier.padding(bottom = Dim.gap)) {
+            if (isValidDialString(number)) nav.push(Screen.InCall(number.trim()))
+        }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun KeyButton(label: String, onClick: () -> Unit) {
+private fun BackspaceButton(onTap: () -> Unit, onHold: () -> Unit) {
     Box(
-        Modifier.size(68.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant).clickable(onClick = onClick),
+        Modifier.size(48.dp).clip(CircleShape).combinedClickable(
+            role = Role.Button,
+            onClickLabel = "Delete last digit",
+            onLongClickLabel = "Clear number",
+            onLongClick = onHold,
+            onClick = onTap,
+        ),
+        contentAlignment = Alignment.Center,
+    ) { Icon(Icons.Default.Clear, "Delete digit") }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun KeyButton(label: String, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
+    Box(
+        Modifier.size(68.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant).combinedClickable(
+            role = Role.Button,
+            onLongClick = onLongClick,
+            onLongClickLabel = if (onLongClick != null) "Enter plus sign" else null,
+            onClick = onClick,
+        ),
         contentAlignment = Alignment.Center,
     ) { Text(label, fontSize = 26.sp, fontWeight = FontWeight.Medium) }
 }
 
-// ---------------------------------------------------------------- In-call (demo)
+// ---------------------------------------------------------------- Call attempt
 
 @Composable
 fun InCallScreen(nav: Nav, peer: String) {
-    var elapsed by remember { mutableIntStateOf(0) }
-    var muted by remember { mutableStateOf(false) }
-    var speaker by remember { mutableStateOf(false) }
-    var keypad by remember { mutableStateOf(false) }
-    var ended by remember { mutableStateOf(false) }
-
+    // Record exactly one attempt per visit, even across recomposition or rotation.
+    var logged by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        while (true) { delay(1000); elapsed++ }
+        if (!logged) { logged = true; store.logCall(peer, 0) }
     }
 
-    val connected = elapsed >= 2
-    val talkSeconds = if (connected) elapsed - 2 else 0
-
-    fun hangUp() {
-        if (ended) return
-        ended = true
-        Store.logCall(peer, talkSeconds)
-        nav.back()
-    }
-    BackHandler { hangUp() }
+    BackHandler { nav.back() }
 
     Column(
         Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).padding(Dim.screen),
@@ -211,47 +257,18 @@ fun InCallScreen(nav: Nav, peer: String) {
         Spacer(Modifier.height(Dim.screen))
         Text(peer, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
         Spacer(Modifier.height(4.dp))
-        Text(
-            if (connected) "Connected · ${fmtDuration(talkSeconds)}" else "Calling...",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(8.dp))
-        DemoBadge()
-        Text(
-            "Demo call – no audio",
-            Modifier.padding(top = 4.dp),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        Spacer(Modifier.height(32.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            ToggleChip("Mute", muted) { muted = !muted }
-            ToggleChip("Speaker", speaker) { speaker = !speaker }
-            ToggleChip("Keypad", keypad) { keypad = !keypad }
-        }
-
-        if (keypad) {
-            Spacer(Modifier.height(Dim.screen))
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                KEYS.forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        row.forEach { k -> KeyButton(k) {} }
-                    }
-                }
-            }
-        }
+        Text("Call not connected", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(Dim.screen))
+        ServiceNotice("Voice calling needs a calling provider, which is not connected in this build.")
 
         Spacer(Modifier.weight(1f))
         Box(
-            Modifier.size(72.dp).clip(CircleShape).background(HangUpRed).clickable { hangUp() },
+            Modifier.size(72.dp).clip(CircleShape).background(EndCallRed)
+                .clickable(role = Role.Button, onClickLabel = "End call") { nav.back() },
             contentAlignment = Alignment.Center,
         ) { Icon(Icons.Default.Call, "End call", Modifier.rotate(135f), tint = Color.White) }
+        Spacer(Modifier.height(8.dp))
+        Text("End", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(32.dp))
     }
-}
-
-@Composable
-private fun ToggleChip(label: String, on: Boolean, onClick: () -> Unit) {
-    FilterChip(selected = on, onClick = onClick, label = { Text(label) })
 }
