@@ -1,22 +1,49 @@
 package com.cloneapp.numa
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-
 // ---- Domain models ----
 data class Country(val code: String, val name: String, val dial: String, val pricePerMonth: Int, val flag: String)
-data class VirtualNumber(val id: Int, val e164: String, val country: Country, val label: String)
-data class Message(val fromMe: Boolean, val text: String, val time: String)
-data class Thread(val id: Int, val peer: String, val numberId: Int, val messages: List<Message>, val unread: Boolean)
-enum class CallDir { IN, OUT, MISSED }
-data class CallEntry(val peer: String, val dir: CallDir, val time: String, val seconds: Int)
-data class EsimPlan(val id: String, val country: Country, val dataGb: Int, val days: Int, val priceUsd: Double)
-data class MyEsim(val id: Int, val plan: EsimPlan, val status: String, val usedGb: Double)
-data class Txn(val title: String, val amount: Int, val time: String) // credits, negative = spend
 
-// ---- Mock catalogue (demo data only) ----
+data class VirtualNumber(
+    val id: Int,
+    val e164: String,
+    val country: Country,
+    val label: String,
+    val purchasedAt: Long,
+    val expiresAt: Long,
+)
+
+data class Message(val fromMe: Boolean, val text: String, val at: Long)
+
+data class Thread(val id: Int, val peer: String, val numberId: Int, val messages: List<Message>, val unread: Boolean) {
+    val last: Message? get() = messages.lastOrNull()
+}
+
+enum class CallDir { IN, OUT, MISSED }
+data class CallEntry(val peer: String, val dir: CallDir, val at: Long, val seconds: Int)
+
+data class EsimPlan(val id: String, val country: Country, val dataGb: Int, val days: Int, val priceUsd: Double) {
+    /** Price in wallet credits (1 credit = 1 USD, rounded). */
+    val credits: Int get() = Math.round(priceUsd).toInt()
+}
+
+/** A purchased plan. Validity starts when the user marks it installed. */
+data class MyEsim(val id: Int, val plan: EsimPlan, val purchasedAt: Long, val installedAt: Long?) {
+    val installed: Boolean get() = installedAt != null
+    val expiresAt: Long? get() = installedAt?.let { it + plan.days * DAY_MS }
+}
+
+/** Wallet ledger entry. [amount] is in credits; negative = spend. */
+data class Txn(val title: String, val amount: Int, val at: Long)
+
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
+const val DAY_MS = 24L * 60 * 60 * 1000
+const val NUMBER_TERM_DAYS = 30
+const val STARTER_CREDITS = 10
+const val MAX_TOP_UP = 500
+const val MAX_MESSAGE_LENGTH = 1000
+
+// ---- Catalogue (static reference data bundled with the app) ----
 val COUNTRIES = listOf(
     Country("US", "United States", "+1", 5, "🇺🇸"),
     Country("GB", "United Kingdom", "+44", 6, "🇬🇧"),
@@ -37,79 +64,8 @@ val ESIM_PLANS: List<EsimPlan> = COUNTRIES.flatMap { c ->
     }
 }
 
-/** (credits, display price). Demo only: no payment is taken. */
-val CREDIT_PACKS = listOf(10 to "$9.99", 25 to "$19.99", 60 to "$39.99")
+/** Quick-add amounts shown in the wallet (credits). */
+val CREDIT_PACKS = listOf(10, 25, 60)
 
-/** In-memory MOCK store. Nothing here talks to a network, carrier or payment provider. */
-object Store {
-    var signedIn by mutableStateOf(false)
-    var displayName by mutableStateOf("Guest")
-    var email by mutableStateOf("")
-    var credits by mutableStateOf(10)
-    val numbers = mutableStateListOf<VirtualNumber>()
-    val threads = mutableStateListOf<Thread>()
-    val calls = mutableStateListOf<CallEntry>()
-    val esims = mutableStateListOf<MyEsim>()
-    val txns = mutableStateListOf<Txn>()
-    private var nextId = 1
-
-    fun signIn(name: String, mail: String) {
-        displayName = name.ifBlank { "Guest" }
-        email = mail
-        signedIn = true
-        if (txns.isEmpty()) {
-            txns.add(Txn("Welcome bonus (demo)", 10, "Today"))
-            calls.addAll(listOf(
-                CallEntry("+1 555 0100", CallDir.IN, "Yesterday", 124),
-                CallEntry("+44 555 0101", CallDir.MISSED, "Mon", 0),
-            ))
-        }
-    }
-
-    fun signOut() {
-        signedIn = false; numbers.clear(); threads.clear(); calls.clear(); esims.clear(); txns.clear(); credits = 10
-    }
-
-    /** Returns null on success, else an error message. */
-    fun buyNumber(e164: String, c: Country): String? {
-        if (numbers.any { it.e164 == e164 }) return "You already own this number."
-        if (credits < c.pricePerMonth) return "Not enough credits (need ${c.pricePerMonth}, have $credits)."
-        credits -= c.pricePerMonth
-        txns.add(0, Txn("Number $e164", -c.pricePerMonth, "now"))
-        val n = VirtualNumber(nextId++, e164, c, "Line ${numbers.size + 1}")
-        numbers.add(n)
-        threads.add(0, Thread(nextId++, "Numa", n.id, listOf(Message(false, "Welcome! $e164 is a demo number — no real SMS.", "now")), true))
-        return null
-    }
-
-    fun release(n: VirtualNumber) {
-        numbers.removeAll { it.id == n.id }
-        threads.removeAll { it.numberId == n.id }
-    }
-
-    fun addCredits(n: Int) { credits += n; txns.add(0, Txn("Top-up (demo, no payment)", n, "now")) }
-
-    /** Plan price in credits = round(priceUsd). Returns null on success, else an error. */
-    fun buyEsim(p: EsimPlan): String? {
-        val cost = Math.round(p.priceUsd).toInt()
-        if (credits < cost) return "Not enough credits (need $cost, have $credits)."
-        credits -= cost
-        txns.add(0, Txn("eSIM ${p.country.name} ${p.dataGb}GB", -cost, "now"))
-        esims.add(0, MyEsim(nextId++, p, "Ready to install (demo)", 0.0))
-        return null
-    }
-
-    fun send(threadId: Int, text: String) {
-        val i = threads.indexOfFirst { it.id == threadId }
-        if (i < 0 || text.isBlank()) return
-        val t = threads[i]
-        threads[i] = t.copy(messages = t.messages + Message(true, text.trim(), "now"), unread = false)
-    }
-
-    fun markRead(threadId: Int) {
-        val i = threads.indexOfFirst { it.id == threadId }
-        if (i >= 0 && threads[i].unread) threads[i] = threads[i].copy(unread = false)
-    }
-
-    fun logCall(peer: String, seconds: Int) { calls.add(0, CallEntry(peer, CallDir.OUT, "now", seconds)) }
-}
+fun countryByCode(code: String): Country? = COUNTRIES.firstOrNull { it.code == code }
+fun planById(id: String): EsimPlan? = ESIM_PLANS.firstOrNull { it.id == id }
