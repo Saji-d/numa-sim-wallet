@@ -120,8 +120,8 @@ sdk.dir=C\:/path/to/android-sdk
 **Build the debug APK**
 
 ```bash
-git clone https://github.com/Saji-d/numa-numbers-esim.git
-cd numa-numbers-esim
+git clone https://github.com/Saji-d/numa-sim-wallet.git
+cd numa-sim-wallet
 ./gradlew :app:assembleDebug        # Windows: gradlew.bat :app:assembleDebug
 ```
 
