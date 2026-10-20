@@ -119,7 +119,7 @@ Captured from the debug build on an Android emulator. The screen map and flows a
 Numa is a single-module, single-activity app. Screens are Compose functions, and all state and business rules live in one store behind a small storage interface. There is no DI framework, navigation library or database dependency.
 
 ```mermaid
-flowchart LR
+flowchart TD
   UI["Compose screens<br/>Screens*.kt"] -->|read state, call rules| S["AppStore<br/>state and business rules"]
   N["Screen routes and Nav back stack<br/>MainActivity.kt"] --> UI
   S -->|snapshot| C["SnapshotCodec<br/>versioned JSON"]
